@@ -1,0 +1,20 @@
+# name: test/sql/binder/test_select_alias.test
+# description: Test filter on alias
+# group: [binder]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE integers(i INTEGER)
+
+statement ok
+INSERT INTO integers VALUES (1), (2), (3), (NULL)
+
+query II
+SELECT i % 2 as k, k*2 FROM integers;
+----
+1	2
+0	0
+1	2
+NULL	NULL

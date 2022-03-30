@@ -289,6 +289,7 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 	// create a mapping of (alias -> index) and a mapping of (Expression -> index) for the SELECT list
 	case_insensitive_map_t<idx_t> alias_map;
 	expression_map_t<idx_t> projection_map;
+	this->column_alias_binder = make_unique<ColumnAliasBinder>(*result, alias_map);
 	for (idx_t i = 0; i < statement.select_list.size(); i++) {
 		auto &expr = statement.select_list[i];
 		result->names.push_back(expr->GetName());
@@ -302,9 +303,13 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 	}
 	result->column_count = statement.select_list.size();
 
+	// This can't outlive alias_map (and result) - TODO - better way of doing this.
+	this->column_alias_binder.reset(nullptr);
+
 	// first visit the WHERE clause
 	// the WHERE clause happens before the GROUP BY, PROJECTION or HAVING clauses
 	if (statement.where_clause) {
+		// TODO use the one above
 		ColumnAliasBinder alias_binder(*result, alias_map);
 		WhereBinder where_binder(*this, context, &alias_binder);
 		unique_ptr<ParsedExpression> condition = move(statement.where_clause);
@@ -354,6 +359,7 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 
 	// bind the HAVING clause, if any
 	if (statement.having) {
+		// todo pass in select binder?
 		HavingBinder having_binder(*this, context, *result, info, alias_map);
 		ExpressionBinder::QualifyColumnNames(*this, statement.having);
 		result->having = having_binder.Bind(statement.having);
@@ -361,6 +367,7 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 
 	// bind the QUALIFY clause, if any
 	if (statement.qualify) {
+		// todo pass in select binder?
 		QualifyBinder qualify_binder(*this, context, *result, info, alias_map);
 		ExpressionBinder::QualifyColumnNames(*this, statement.qualify);
 		result->qualify = qualify_binder.Bind(statement.qualify);

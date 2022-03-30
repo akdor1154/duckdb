@@ -16,6 +16,7 @@ BindResult WhereBinder::BindColumnRef(unique_ptr<ParsedExpression> *expr_ptr, id
 	}
 
 	BindResult alias_result = column_alias_binder->BindAlias(*this, expr, depth, root_expression);
+	// TODO
 	// This code path cannot be exercised at thispoint. #1547 might change that.
 	if (!alias_result.HasError()) {
 		return alias_result;

@@ -34,21 +34,49 @@ unique_ptr<ParsedExpression> ExpressionBinder::QualifyColumnName(const string &c
 			return move(coalesce);
 		}
 	}
-	// no table name: find a binding that contains this
+
+	// these could be std::optional given cpp17?
+	unique_ptr<ParsedExpression> matched_from_macro(nullptr);
+	unique_ptr<ParsedExpression> matched_from_alias(nullptr);
+	unique_ptr<ParsedExpression> matched_from_column(nullptr);
+
+	// This preserves existing behaviour.
+	// TODO: change behaviour to error on ambiguity.
 	if (binder.macro_binding != nullptr && binder.macro_binding->HasMatchingBinding(column_name)) {
-		// priority to macro parameter bindings TODO: throw a warning when this name conflicts
 		D_ASSERT(!binder.macro_binding->alias.empty());
-		return make_unique<ColumnRefExpression>(column_name, binder.macro_binding->alias);
-	} else {
-		string table_name = binder.bind_context.GetMatchingBinding(column_name);
-		if (table_name.empty()) {
-			auto similar_bindings = binder.bind_context.GetSimilarBindings(column_name);
-			string candidate_str = StringUtil::CandidatesMessage(similar_bindings, "Candidate bindings");
-			error_message =
-			    StringUtil::Format("Referenced column \"%s\" not found in FROM clause!%s", column_name, candidate_str);
-			return nullptr;
+		matched_from_macro = make_unique<ColumnRefExpression>(column_name, binder.macro_binding->alias);
+	}
+
+	if (binder.column_alias_binder && binder.column_alias_binder->HasAlias(column_name)) {
+		unique_ptr<ParsedExpression> real_expression;
+		auto alias_error = binder.column_alias_binder->GetRealExpression(column_name, real_expression);
+		if (!alias_error.empty()) {
+			throw new BinderException(
+			    StringUtil::Format("Alias binding should have worked, but failed: %s", alias_error));
 		}
-		return binder.bind_context.CreateColumnReference(table_name, column_name);
+		matched_from_alias = move(real_expression);
+	}
+
+	{
+		string table_name = binder.bind_context.GetMatchingBinding(column_name);
+		if (!table_name.empty()) {
+			matched_from_column = binder.bind_context.CreateColumnReference(table_name, column_name);
+		}
+	}
+
+	if (matched_from_macro) {
+		// priority to macro parameter bindings TODO: throw a warning when this name conflicts
+		return matched_from_macro;
+	} else if (matched_from_column) {
+		return matched_from_column;
+	} else if (matched_from_alias) {
+		return matched_from_alias;
+	} else {
+		auto similar_bindings = binder.bind_context.GetSimilarBindings(column_name);
+		string candidate_str = StringUtil::CandidatesMessage(similar_bindings, "Candidate bindings");
+		error_message =
+		    StringUtil::Format("Referenced column \"%s\" not found in FROM clause!%s", column_name, candidate_str);
+		return nullptr;
 	}
 }
 

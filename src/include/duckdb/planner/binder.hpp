@@ -14,6 +14,7 @@
 #include "duckdb/planner/bind_context.hpp"
 #include "duckdb/planner/bound_tokens.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
+#include "duckdb/planner/expression_binder/column_alias_binder.hpp" // TODO when include and when forward ref?
 #include "duckdb/planner/logical_operator.hpp"
 #include "duckdb/planner/bound_statement.hpp"
 #include "duckdb/common/case_insensitive_map.hpp"
@@ -184,6 +185,10 @@ private:
 	unordered_set<string> table_names;
 	//! The set of bound views
 	unordered_set<ViewCatalogEntry *> bound_views;
+
+	//! Current select column alias bindings (if any)
+	//! should be std::optional.
+	unique_ptr<ColumnAliasBinder> column_alias_binder = unique_ptr<ColumnAliasBinder>(nullptr);
 
 private:
 	//! Bind the default values of the columns of a table

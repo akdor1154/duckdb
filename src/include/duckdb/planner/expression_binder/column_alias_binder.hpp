@@ -21,6 +21,8 @@ class ColumnAliasBinder {
 public:
 	ColumnAliasBinder(BoundSelectNode &node, const case_insensitive_map_t<idx_t> &alias_map);
 
+	bool HasAlias(const string &column_name);
+	string GetRealExpression(const std::string &column_name, unique_ptr<ParsedExpression> &expr);
 	BindResult BindAlias(ExpressionBinder &enclosing_binder, ColumnRefExpression &expr, idx_t depth,
 	                     bool root_expression);
 
