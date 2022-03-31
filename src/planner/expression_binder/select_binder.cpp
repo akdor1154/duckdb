@@ -35,18 +35,6 @@ BindResult SelectBinder::BindExpression(unique_ptr<ParsedExpression> *expr_ptr, 
 }
 
 idx_t SelectBinder::TryBindGroup(ParsedExpression &expr, idx_t depth) {
-	// first check the group alias map, if expr is a ColumnRefExpression
-	if (expr.type == ExpressionType::COLUMN_REF) {
-		auto &colref = (ColumnRefExpression &)expr;
-		if (!colref.IsQualified()) {
-			auto alias_entry = info.alias_map.find(colref.column_names[0]);
-			if (alias_entry != info.alias_map.end()) {
-				// found entry!
-				return alias_entry->second;
-			}
-		}
-	}
-	// no alias reference found
 	// check the list of group columns for a match
 	auto entry = info.map.find(&expr);
 	if (entry != info.map.end()) {

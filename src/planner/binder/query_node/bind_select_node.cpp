@@ -323,8 +323,9 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 	if (!group_expressions.empty()) {
 		// the statement has a GROUP BY clause, bind it
 		unbound_groups.resize(group_expressions.size());
-		GroupBinder group_binder(*this, context, statement, result->group_index, alias_map, info.alias_map);
+		GroupBinder group_binder(*this, context, statement, result->group_index);
 		for (idx_t i = 0; i < group_expressions.size(); i++) {
+			ExpressionBinder::QualifyColumnNames(*this, group_expressions[i]);
 
 			// we keep a copy of the unbound expression;
 			// we keep the unbound copy around to check for group references in the SELECT and HAVING clause
@@ -348,7 +349,6 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 			// if we wouldn't do this then (SELECT test.a FROM test GROUP BY a) would not work because "test.a" <> "a"
 			// hence we convert "a" -> "test.a" in the unbound expression
 			unbound_groups[i] = move(group_binder.unbound_expression);
-			ExpressionBinder::QualifyColumnNames(*this, unbound_groups[i]);
 			info.map[unbound_groups[i].get()] = i;
 		}
 	}
@@ -369,9 +369,6 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 		ExpressionBinder::QualifyColumnNames(*this, statement.qualify);
 		result->qualify = qualify_binder.Bind(statement.qualify);
 	}
-
-	// This can't outlive alias_map (and result) - TODO - better way of doing this.
-	this->column_alias_binder.reset(nullptr);
 
 	// after that, we bind to the SELECT list
 	SelectBinder select_binder(*this, context, *result, info);
@@ -400,6 +397,11 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 		}
 	}
 	result->need_prune = result->select_list.size() > result->column_count;
+
+
+	// This can't outlive alias_map (and result) - TODO - better way of doing this.
+	this->column_alias_binder.reset(nullptr);
+
 
 	// in the normal select binder, we bind columns as if there is no aggregation
 	// i.e. in the query [SELECT i, SUM(i) FROM integers;] the "i" will be bound as a normal column
