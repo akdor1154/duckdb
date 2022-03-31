@@ -303,9 +303,6 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 	}
 	result->column_count = statement.select_list.size();
 
-	// This can't outlive alias_map (and result) - TODO - better way of doing this.
-	this->column_alias_binder.reset(nullptr);
-
 	// first visit the WHERE clause
 	// the WHERE clause happens before the GROUP BY, PROJECTION or HAVING clauses
 	if (statement.where_clause) {
@@ -372,6 +369,9 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 		ExpressionBinder::QualifyColumnNames(*this, statement.qualify);
 		result->qualify = qualify_binder.Bind(statement.qualify);
 	}
+
+	// This can't outlive alias_map (and result) - TODO - better way of doing this.
+	this->column_alias_binder.reset(nullptr);
 
 	// after that, we bind to the SELECT list
 	SelectBinder select_binder(*this, context, *result, info);
