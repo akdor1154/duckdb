@@ -8,18 +8,13 @@
 
 namespace duckdb {
 
-HavingBinder::HavingBinder(Binder &binder, ClientContext &context, BoundSelectNode &node, BoundGroupInformation &info,
-                           case_insensitive_map_t<idx_t> &alias_map)
-    : SelectBinder(binder, context, node, info), column_alias_binder(node, alias_map) {
+HavingBinder::HavingBinder(Binder &binder, ClientContext &context, BoundSelectNode &node, BoundGroupInformation &info)
+    : SelectBinder(binder, context, node, info) {
 	target_type = LogicalType(LogicalTypeId::BOOLEAN);
 }
 
 BindResult HavingBinder::BindColumnRef(unique_ptr<ParsedExpression> *expr_ptr, idx_t depth, bool root_expression) {
 	auto &expr = (ColumnRefExpression &)**expr_ptr;
-	auto alias_result = column_alias_binder.BindAlias(*this, expr, depth, root_expression);
-	if (!alias_result.HasError()) {
-		return alias_result;
-	}
 
 	return BindResult(StringUtil::Format(
 	    "column %s must appear in the GROUP BY clause or be used in an aggregate function", expr.ToString()));

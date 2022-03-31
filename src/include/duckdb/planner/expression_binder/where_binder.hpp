@@ -17,7 +17,7 @@ class ColumnAliasBinder;
 //! The WHERE binder is responsible for binding an expression within the WHERE clause of a SQL statement
 class WhereBinder : public ExpressionBinder {
 public:
-	WhereBinder(Binder &binder, ClientContext &context, ColumnAliasBinder *column_alias_binder = nullptr);
+	WhereBinder(Binder &binder, ClientContext &context);
 
 protected:
 	BindResult BindExpression(unique_ptr<ParsedExpression> *expr_ptr, idx_t depth,
@@ -25,10 +25,6 @@ protected:
 
 	string UnsupportedAggregateMessage() override;
 
-private:
-	BindResult BindColumnRef(unique_ptr<ParsedExpression> *expr_ptr, idx_t depth, bool root_expression);
-
-	ColumnAliasBinder *column_alias_binder;
 };
 
 } // namespace duckdb

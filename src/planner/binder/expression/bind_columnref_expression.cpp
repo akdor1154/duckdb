@@ -51,7 +51,7 @@ unique_ptr<ParsedExpression> ExpressionBinder::QualifyColumnName(const string &c
 		unique_ptr<ParsedExpression> real_expression;
 		auto alias_error = binder.column_alias_binder->GetRealExpression(column_name, real_expression);
 		if (!alias_error.empty()) {
-			throw new BinderException(
+			throw new InternalException(
 			    StringUtil::Format("Alias binding should have worked, but failed: %s", alias_error));
 		}
 		matched_from_alias = move(real_expression);

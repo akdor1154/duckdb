@@ -34,6 +34,8 @@ BindResult SelectBinder::BindExpression(unique_ptr<ParsedExpression> *expr_ptr, 
 	}
 }
 
+//! Attempt to bind to a grouping variable.
+//! Aliases must be resolved with QualifyColumnNames before calling this function.
 idx_t SelectBinder::TryBindGroup(ParsedExpression &expr, idx_t depth) {
 	// check the list of group columns for a match
 	auto entry = info.map.find(&expr);

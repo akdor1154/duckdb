@@ -22,6 +22,7 @@
 
 namespace duckdb {
 
+// TODO: rename to BindModifierExpression?
 unique_ptr<Expression> Binder::BindOrderExpression(OrderBinder &order_binder, unique_ptr<ParsedExpression> expr) {
 	// we treat the Distinct list as a order by
 	auto bound_expr = order_binder.Bind(move(expr));
@@ -141,6 +142,8 @@ void Binder::BindModifiers(OrderBinder &order_binder, QueryNode &statement, Boun
 				order.orders = move(new_orders);
 			}
 			for (auto &order_node : order.orders) {
+				// TODO
+				//ExpressionBinder::QualifyColumnNames(*this, order_node.expression, true);
 				auto order_expression = BindOrderExpression(order_binder, move(order_node.expression));
 				if (!order_expression) {
 					continue;
@@ -307,8 +310,9 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 	// the WHERE clause happens before the GROUP BY, PROJECTION or HAVING clauses
 	if (statement.where_clause) {
 		// TODO use the one above
-		ColumnAliasBinder alias_binder(*result, alias_map);
-		WhereBinder where_binder(*this, context, &alias_binder);
+		// ColumnAliasBinder alias_binder(*result, alias_map);
+		ExpressionBinder::QualifyColumnNames(*this, statement.where_clause);
+		WhereBinder where_binder(*this, context);
 		unique_ptr<ParsedExpression> condition = move(statement.where_clause);
 		result->where_clause = where_binder.Bind(condition);
 	}
@@ -344,10 +348,8 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 			    ExpressionBinder::PushCollation(context, move(bound_expr), StringType::GetCollation(group_type), true);
 			result->groups.group_expressions.push_back(move(bound_expr));
 
-			// in the unbound expression we DO bind the table names of any ColumnRefs
-			// we do this to make sure that "table.a" and "a" are treated the same
-			// if we wouldn't do this then (SELECT test.a FROM test GROUP BY a) would not work because "test.a" <> "a"
-			// hence we convert "a" -> "test.a" in the unbound expression
+			// Resolve table names and aliases
+			ExpressionBinder::QualifyColumnNames(*this, group_binder.unbound_expression);
 			unbound_groups[i] = move(group_binder.unbound_expression);
 			info.map[unbound_groups[i].get()] = i;
 		}
@@ -356,17 +358,15 @@ unique_ptr<BoundQueryNode> Binder::BindNode(SelectNode &statement) {
 
 	// bind the HAVING clause, if any
 	if (statement.having) {
-		// todo pass in select binder?
-		HavingBinder having_binder(*this, context, *result, info, alias_map);
 		ExpressionBinder::QualifyColumnNames(*this, statement.having);
+		HavingBinder having_binder(*this, context, *result, info);
 		result->having = having_binder.Bind(statement.having);
 	}
 
 	// bind the QUALIFY clause, if any
 	if (statement.qualify) {
-		// todo pass in select binder?
-		QualifyBinder qualify_binder(*this, context, *result, info, alias_map);
 		ExpressionBinder::QualifyColumnNames(*this, statement.qualify);
+		QualifyBinder qualify_binder(*this, context, *result, info);
 		result->qualify = qualify_binder.Bind(statement.qualify);
 	}
 
